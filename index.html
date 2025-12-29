@@ -2,75 +2,106 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Master Admin - Rastreamento</title>
+    <title>LogiAdmin - Central de Comando</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #f4f4f4; }
-        #map { height: 100vh; width: 100vw; }
-        .panel { position: absolute; top: 20px; left: 20px; z-index: 1000; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); width: 280px; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        button { width: 100%; background: #ea1d2c; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        #log { margin-top: 15px; font-size: 11px; color: #666; max-height: 100px; overflow-y: auto; }
-        .marker-label { background: white; border: 1px solid red; font-weight: bold; padding: 2px 5px; }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; background: #f0f2f5; }
+        #sidebar { width: 350px; background: white; border-right: 1px solid #ddd; z-index: 1000; display: flex; flex-direction: column; }
+        #map { flex: 1; }
+        .header { background: #1a1a1a; color: white; padding: 20px; }
+        .driver-list { padding: 15px; flex: 1; overflow-y: auto; }
+        .driver-card { background: #f9f9f9; border: 1px solid #eee; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+        .driver-card h4 { margin: 0; display: flex; align-items: center; gap: 8px; }
+        .btn-action { width: 100%; padding: 10px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; margin-top: 8px; font-size: 12px; }
+        .btn-locate { background: #1a1a1a; color: white; }
+        .btn-route { background: #ea1d2c; color: white; }
+        .stop-badge { background: #ff9f43; color: white; border-radius: 50%; width: 25px; height: 25px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
     </style>
 </head>
 <body>
-    <div class="panel">
-        <h2 style="margin:0 0 10px 0; font-size: 18px;">Gerenciador de Rotas</h2>
-        <input type="text" id="motoboyName" placeholder="Nome do Entregador">
-        <button onclick="createTrack()">GERAR LINK E COPIAR</button>
-        <div id="log">Aguardando ações...</div>
+
+<div id="sidebar">
+    <div class="header">
+        <h2 style="margin:0"><i class="fa fa-satellite"></i> LOGIADMIN</h2>
+        <small>Gestão de Frota em Tempo Real</small>
     </div>
-    <div id="map"></div>
-
-    <script>
-        const SB_URL = 'https://zauxkrwtnrlwlgvsdewv.supabase.co';
-        const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphdXhrcnd0bnJsd2xndnNkZXd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY5Njc4MjgsImV4cCI6MjA4MjU0MzgyOH0.L7HJfYvY-IyTBo6gC597EnChuq536WHCDdIZxv8-cKI';
-        const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
-
-        const map = L.map('map', { zoomControl: false }).setView([-23.55, -46.63], 12);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
+    <div class="driver-list">
+        <input type="text" id="nameIn" placeholder="Nome do Motoboy" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd; margin-bottom:10px;">
+        <button onclick="createLink()" style="width:100%; background:#ea1d2c; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">CRIAR NOVO ACESSO</button>
+        <div id="urlOut" style="font-size:10px; color:#ea1d2c; margin:10px 0; word-break:all;"></div>
         
-        const markers = {};
+        <hr>
+        <h3 style="font-size: 14px; color: #666;">ENTREGADORES ATIVOS</h3>
+        <div id="list"></div>
+    </div>
+</div>
 
-        async function createTrack() {
-            const name = document.getElementById('motoboyName').value || "Motoboy";
-            const { data, error } = await supabaseClient.from('sessions').insert([{ user_name: name }]).select();
-            if (data) {
-                const url = `${window.location.origin}${window.location.pathname.replace('index.html', '')}motoboy.html?id=${data[0].id}`;
-                navigator.clipboard.writeText(url);
-                document.getElementById('log').innerHTML = `<b style="color:green">Link Criado!</b><br>${url}`;
+<div id="map"></div>
+
+<script>
+    const SB_URL = 'https://zauxkrwtnrlwlgvsdewv.supabase.co';
+    const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphdXhrcnd0bnJsd2xndnNkZXd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY5Njc4MjgsImV4cCI6MjA4MjU0MzgyOH0.L7HJfYvY-IyTBo6gC597EnChuq536WHCDdIZxv8-cKI';
+    const _supabase = supabase.createClient(SB_URL, SB_KEY);
+
+    const map = L.map('map', { zoomControl: false }).setView([-23.55, -46.63], 13);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
+
+    const markers = {};
+    const routes = {};
+    const stopsLayer = L.layerGroup().addTo(map);
+
+    async function createLink() {
+        const name = document.getElementById('nameIn').value || "Entregador";
+        const { data } = await _supabase.from('sessions').insert([{ user_name: name }]).select();
+        if (data) {
+            const url = `${window.location.origin}${window.location.pathname.replace('index.html', '')}motoboy.html?id=${data[0].id}`;
+            navigator.clipboard.writeText(url);
+            document.getElementById('urlOut').innerText = "Link Gerado e Copiado!";
+        }
+    }
+
+    async function showHistory(id, name) {
+        stopsLayer.clearLayers();
+        const { data } = await _supabase.from('locations').select('*').eq('session_id', id).order('created_at', {ascending: true});
+        if (!data || data.length < 2) return;
+
+        const path = data.map(p => [p.latitude, p.longitude]);
+        if (routes[id]) map.removeLayer(routes[id]);
+        routes[id] = L.polyline(path, {color: '#ea1d2c', weight: 5}).addTo(map);
+        map.fitBounds(routes[id].getBounds());
+
+        // Lógica de Parada 20min
+        for (let i = 1; i < data.length; i++) {
+            const diff = (new Date(data[i].created_at) - new Date(data[i-1].created_at)) / 1000 / 60;
+            if (diff >= 20) {
+                L.marker([data[i].latitude, data[i].longitude], {
+                    icon: L.divIcon({ className: 'stop-badge', html: 'P' })
+                }).addTo(stopsLayer).bindPopup(`<b>Parada de ${Math.round(diff)} min</b>`);
             }
         }
+    }
 
-        async function loadActiveMarkers() {
-            const { data } = await supabaseClient.from('locations').select('*, sessions(user_name)').order('created_at', { ascending: false });
-            if (data) {
-                const processed = new Set();
-                data.forEach(loc => {
-                    if (!processed.has(loc.session_id)) {
-                        updateMap(loc.session_id, loc.latitude, loc.longitude, loc.sessions?.user_name);
-                        processed.add(loc.session_id);
-                    }
-                });
-            }
+    _supabase.channel('gps').on('postgres_changes', { event: 'INSERT', table: 'locations' }, async (payload) => {
+        const { session_id, latitude, longitude } = payload.new;
+        if (!markers[session_id]) {
+            const { data } = await _supabase.from('sessions').select('user_name').eq('id', session_id).single();
+            const name = data?.user_name || "Motoboy";
+            markers[session_id] = L.marker([latitude, longitude]).addTo(map).bindPopup(name);
+            
+            const card = document.createElement('div');
+            card.className = 'driver-card';
+            card.innerHTML = `<h4><i class="fa fa-motorcycle"></i> ${name}</h4>
+                <button class="btn-action btn-locate" onclick="map.flyTo([${latitude}, ${longitude}], 17)">LOCALIZAR</button>
+                <button class="btn-action btn-route" onclick="showHistory('${session_id}', '${name}')">VER ROTA E PARADAS</button>`;
+            document.getElementById('list').appendChild(card);
+        } else {
+            markers[session_id].setLatLng([latitude, longitude]);
         }
+    }).subscribe();
 
-        function updateMap(id, lat, lng, name) {
-            if (!markers[id]) {
-                markers[id] = L.marker([lat, lng]).addTo(map).bindPopup(name || "Entregador");
-            } else {
-                markers[id].setLatLng([lat, lng]);
-            }
-        }
-
-        supabaseClient.channel('any').on('postgres_changes', { event: 'INSERT', table: 'locations' }, payload => {
-            updateMap(payload.new.session_id, payload.new.latitude, payload.new.longitude);
-        }).subscribe();
-
-        loadActiveMarkers();
-    </script>
+</script>
 </body>
 </html>
