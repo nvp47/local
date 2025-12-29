@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Central de Monitoramento</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { margin: 0; font-family: sans-serif; background: #f0f2f5; }
+        #map { height: 100vh; width: 100vw; }
+        .admin-panel { position: absolute; top: 20px; left: 20px; z-index: 1000; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 260px; }
+        input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        button { width: 100%; background: #1a1a1a; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        #linkDisplay { margin-top: 15px; font-size: 11px; color: #ea1d2c; word-break: break-all; }
+    </style>
+</head>
+<body>
+    <div class="admin-panel">
+        <h3>Nova Entrega</h3>
+        <input type="text" id="userName" placeholder="Nome do Motoboy">
+        <button onclick="generateLink()">GERAR LINK DE RASTREIO</button>
+        <div id="linkDisplay"></div>
+    </div>
+    <div id="map"></div>
+
+    <script>
+        const supabaseUrl = 'https://zauxkrwtnrlwlgvsdewv.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphdXhrcnd0bnJsd2xndnNkZXd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY5Njc4MjgsImV4cCI6MjA4MjU0MzgyOH0.L7HJfYvY-IyTBo6gC597EnChuq536WHCDdIZxv8-cKI';
+        const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+        const map = L.map('map', { zoomControl: false }).setView([-23.55, -46.63], 13);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
+        
+        const markers = {};
+
+        async function generateLink() {
+            const name = document.getElementById('userName').value;
+            const { data } = await _supabase.from('sessions').insert([{ user_name: name }]).select();
+            if (data) {
+                const trackUrl = `${window.location.origin}${window.location.pathname.replace('index.html', '')}motoboy.html?id=${data[0].id}`;
+                document.getElementById('linkDisplay').innerText = "Link copiado! Envie para o motoboy.";
+                navigator.clipboard.writeText(trackUrl);
+            }
+        }
+
+        // Escutar o GPS em tempo real
+        _supabase.channel('gps-live')
+            .on('postgres_changes', { event: 'INSERT', table: 'locations' }, payload => {
+                const { session_id, latitude, longitude } = payload.new;
+                if (!markers[session_id]) {
+                    markers[session_id] = L.marker([latitude, longitude]).addTo(map);
+                } else {
+                    markers[session_id].setLatLng([latitude, longitude]);
+                }
+                map.panTo([latitude, longitude]);
+            }).subscribe();
+    </script>
+</body>
+</html>
